@@ -82,4 +82,8 @@ def add_reviews(id: int, review: ReviewBase, session: SessionDep):
     session.refresh(db_review)
     return db_review
 
+@router.get("/books/{id}/reviews", response_model=list[ReviewBase])
+def get_reviews_by_id(id: int, session: SessionDep):
 
+    reviews = session.exec(select(ReviewBase).where(ReviewBase.book_id == id))
+    return reviews
