@@ -29,6 +29,14 @@ def get_all_books(
     books = session.exec(select(BookBase).offset(offset).limit(limit)).all()
     return books
 
+# get reviews
+@router.get("/books/reviews", response_model=list[ReviewBase])
+def get_all_reviews(
+    session: SessionDep
+    ):
+    rev = session.exec(select(ReviewBase)).all()
+    return rev
+
 # get books by id
 @router.get("/books/{id}", response_model=BookBase)
 def get_book_by_id(id: int, session: SessionDep):
@@ -62,13 +70,16 @@ def delete_book(id: int, session: SessionDep) :
 
 # POST /books/<id>/reviews: Add a review for a book.
 
-# @router.post("/books/{id}/reviews", response_model=ReviewBase)
-# def create_book(review: ReviewBase, session: SessionDep):
-#     db_review = BookBase.model_validate(review)
-#     session.add(db_review)
-#     session.commit()
-#     session.refresh(db_review)
-#     return db_review
-
+@router.post("/books/{id}/reviews", response_model=None)
+def add_reviews(id: int, review: ReviewBase, session: SessionDep):
+    book = session.get(BookBase, id)
+    if not book:
+        raise HTTPException(status_code=404, detail="book not found")
+    review.book_id = id
+    db_review = ReviewBase.model_validate(review)
+    session.add(db_review)
+    session.commit()
+    session.refresh(db_review)
+    return db_review
 
 
