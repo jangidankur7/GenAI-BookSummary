@@ -87,3 +87,20 @@ def get_reviews_by_id(id: int, session: SessionDep):
 
     reviews = session.exec(select(ReviewBase).where(ReviewBase.book_id == id))
     return reviews
+
+@router.get("/books/{id}/summary", response_model=None)
+def get_summary_review(id: int, session: SessionDep):
+
+    # call ollama endpoint for text summarization
+
+    reviews = session.exec(select(ReviewBase.rating).where(ReviewBase.book_id == id))
+    li = []
+    for rev in reviews:
+        li.append(rev)
+    average_rating = sum(li)/len(li)
+    return {"summary": None,
+            "msg": average_rating}
+
+
+
+
