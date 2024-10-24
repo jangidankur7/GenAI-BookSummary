@@ -1,18 +1,17 @@
 
-from sqlmodel import Field, Session, SQLModel, create_engine, select
-from fastapi import Depends, FastAPI, HTTPException, Query
+from sqlmodel import Field, create_engine, select
+from fastapi import Depends, HTTPException, Query
 from typing import Annotated
 from models.books import BookBase, BookUpdate
 from models.reviews import ReviewBase
 from db.utils import SessionDep
 from fastapi import APIRouter
-from main import logger
 
 router = APIRouter()
 
 # add new books
 @router.post("/books/", response_model=BookBase)
-def create_book(book: BookBase, session: SessionDep):
+async def create_book(book: BookBase, session: SessionDep):
     db_book = BookBase.model_validate(book)
     session.add(db_book)
     session.commit()
@@ -21,7 +20,7 @@ def create_book(book: BookBase, session: SessionDep):
 
 # get books
 @router.get("/books/", response_model=list[BookBase])
-def get_all_books(
+async def get_all_books(
     session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
@@ -31,7 +30,7 @@ def get_all_books(
 
 # get reviews
 @router.get("/books/reviews", response_model=list[ReviewBase])
-def get_all_reviews(
+async def get_all_reviews(
     session: SessionDep
     ):
     rev = session.exec(select(ReviewBase)).all()
@@ -39,7 +38,7 @@ def get_all_reviews(
 
 # get books by id
 @router.get("/books/{id}", response_model=BookBase)
-def get_book_by_id(id: int, session: SessionDep):
+async def get_book_by_id(id: int, session: SessionDep):
     book = session.get(BookBase, id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -48,7 +47,7 @@ def get_book_by_id(id: int, session: SessionDep):
 
 #  update book data
 @router.patch("/books/{id}", response_model=BookBase)
-def update_book(id: int, book: BookUpdate, session: SessionDep):
+async def update_book(id: int, book: BookUpdate, session: SessionDep):
         db_book = session.get(BookBase, id)
         if not db_book:
             raise HTTPException(status_code=404, detail="book not found")
@@ -60,7 +59,7 @@ def update_book(id: int, book: BookUpdate, session: SessionDep):
         return db_book
 
 @router.delete("/books/{id}")
-def delete_book(id: int, session: SessionDep) :
+async def delete_book(id: int, session: SessionDep) :
     book = session.get(BookBase, id)
     if not book:
         raise HTTPException(status_code=404, detail="book not found")
@@ -71,10 +70,18 @@ def delete_book(id: int, session: SessionDep) :
 # POST /books/<id>/reviews: Add a review for a book.
 
 @router.post("/books/{id}/reviews", response_model=None)
-def add_reviews(id: int, review: ReviewBase, session: SessionDep):
+async def add_reviews(id: int, review: ReviewBase, session: SessionDep):
     book = session.get(BookBase, id)
     if not book:
         raise HTTPException(status_code=404, detail="book not found")
+    
+    # do similar to check user_id exist or not
+
+    # book = session.get(BookBase, id)
+    # if not book:
+    #     raise HTTPException(status_code=404, detail="book not found")
+
+
     review.book_id = id
     db_review = ReviewBase.model_validate(review)
     session.add(db_review)
@@ -83,22 +90,24 @@ def add_reviews(id: int, review: ReviewBase, session: SessionDep):
     return db_review
 
 @router.get("/books/{id}/reviews", response_model=list[ReviewBase])
-def get_reviews_by_id(id: int, session: SessionDep):
+async def get_reviews_by_id(id: int, session: SessionDep):
 
     reviews = session.exec(select(ReviewBase).where(ReviewBase.book_id == id))
     return reviews
 
 @router.get("/books/{id}/summary", response_model=None)
-def get_summary_review(id: int, session: SessionDep):
-
-    # call ollama endpoint for text summarization
-
+async def get_summary_review(id: int, session: SessionDep):
+    
     reviews = session.exec(select(ReviewBase.rating).where(ReviewBase.book_id == id))
+    summary = session.exec(select(BookBase.summary).where(BookBase.id == id))
     li = []
     for rev in reviews:
         li.append(rev)
+    li_ = []
+    for sum_ in summary:
+        li_.append(sum_)
     average_rating = sum(li)/len(li)
-    return {"summary": None,
+    return {"summary": li_,
             "msg": average_rating}
 
 
