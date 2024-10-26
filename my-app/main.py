@@ -1,15 +1,16 @@
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Query
-from db.utils import logger
+from db.utils import logger, check_ollama_model
 # import add_router
 
 from api import books
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info('Wait started!')
-    # fun_long()
-    logger.info('Wait Ended!')
+    logger.info('Loading ollama model !!!')
+    check_ollama_model()
+    logger.info('model loaded ...')
+    
 
     yield 
     # create_db_and_tables()

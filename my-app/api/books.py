@@ -1,11 +1,13 @@
 
 from sqlmodel import Field, create_engine, select
-from fastapi import Depends, HTTPException, Query
+from fastapi import Depends, HTTPException, Query, Response
 from typing import Annotated
 from models.books import BookBase, BookUpdate
 from models.reviews import ReviewBase
-from db.utils import SessionDep
+from db.utils import SessionDep, logger
 from fastapi import APIRouter
+import requests
+import time
 
 router = APIRouter()
 
@@ -109,6 +111,21 @@ async def get_summary_review(id: int, session: SessionDep):
     average_rating = sum(li)/len(li)
     return {"summary": li_,
             "msg": average_rating}
+
+@router.get('/ask')
+async def ask(prompt :str):
+    context = 'Summarize the content: '
+    res = requests.post('http://localhost:11434/api/generate', json={
+        "prompt": context + prompt,
+        "stream" : False,
+        "model" : "qwen2.5:1.5b"
+    })
+
+    return {"summary": res.json()['response']}
+
+
+
+
 
 
 
