@@ -2,7 +2,9 @@
 from sqlmodel import Field, create_engine, select
 from fastapi import Depends, HTTPException, Query, Response
 from typing import Annotated
-from models.books import BookBase, BookUpdate
+from datetime import datetime
+from models.books import BookBase
+# , BookUpdate
 from models.reviews import ReviewBase
 from db.utils import SessionDep, logger
 from fastapi import APIRouter
@@ -16,18 +18,17 @@ router = APIRouter()
 async def create_book(book: BookBase, session: SessionDep):
     db_book = BookBase.model_validate(book)
     session.add(db_book)
-    session.commit()
-    session.refresh(db_book)
+    await session.commit()
+    await session.refresh(db_book)
     return db_book
 
 # get books
 @router.get("/books/", response_model=list[BookBase])
 async def get_all_books(
     session: SessionDep,
-    offset: int = 0,
-    limit: Annotated[int, Query(le=100)] = 100,
 ):
-    books = session.exec(select(BookBase).offset(offset).limit(limit)).all()
+    statement = select(BookBase)
+    books = await session.exec(statement=statement)
     return books
 
 # get reviews
@@ -35,30 +36,49 @@ async def get_all_books(
 async def get_all_reviews(
     session: SessionDep
     ):
-    rev = session.exec(select(ReviewBase)).all()
+    statement = select(ReviewBase)
+    rev = await session.exec(statement=statement)
     return rev
 
 # get books by id
 @router.get("/books/{id}", response_model=BookBase)
 async def get_book_by_id(id: int, session: SessionDep):
-    book = session.get(BookBase, id)
-    if not book:
+    statement = select(BookBase).where(BookBase.id == id)
+    book = await session.exec(statement=statement)
+    # res = book.scalar_one_or_none() 
+    book = book.one_or_none()
+    logger.warning(book)
+    if book is None: 
         raise HTTPException(status_code=404, detail="Book not found")
     return book
-
+    
 
 #  update book data
 @router.patch("/books/{id}", response_model=BookBase)
-async def update_book(id: int, book: BookUpdate, session: SessionDep):
-        db_book = session.get(BookBase, id)
-        if not db_book:
-            raise HTTPException(status_code=404, detail="book not found")
-        book_data = book.model_dump(exclude_unset=True)
-        db_book.sqlmodel_update(book_data)
-        session.add(db_book)
-        session.commit()
-        session.refresh(db_book)
-        return db_book
+async def update_book(id: int, book: BookBase, session: SessionDep):
+    db_book = BookBase.model_validate(book)
+    logger.warning('header')
+    logger.warning(book)
+    statement = select(BookBase).where(BookBase.id == id)
+    db_book = await session.exec(statement=statement)
+    db_book = db_book.one_or_none()
+    logger.warning('old')
+    logger.info(db_book)
+    if db_book is None: 
+        raise HTTPException(status_code=404, detail="Book not found")
+    values = book.model_dump(exclude_unset=True, context = BookBase)
+    for k, v in values.items():
+        logger.info(f'{k} -- {v}')
+        if k == 'year_published':
+            v = datetime.strptime(v, '%Y-%m-%d').date()
+        setattr(db_book, k, v)
+    # book_data = book.model_dump(exclude_unset=True)
+    logger.warning('new')
+    logger.warning(db_book)
+    session.add(db_book)
+    await session.commit()
+    await session.refresh(db_book)
+    return db_book
 
 @router.delete("/books/{id}")
 async def delete_book(id: int, session: SessionDep) :

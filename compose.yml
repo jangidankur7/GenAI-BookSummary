@@ -17,9 +17,9 @@ services:
     networks:
       - gen-ai-net
     volumes: 
-      - ./postgres-data:/var/lib/postgresql/data
+      - ./db_migration/postgres-data:/var/lib/postgresql/data
       # copy the sql script to create tables
-      - ./tables_schema.sql:/docker-entrypoint-initdb.d/create_tables.sql
+      - ./db_migration/tables_schema.sql:/docker-entrypoint-initdb.d/create_tables.sql
 
   # pgadmin:
   #   image: dpage/pgadmin4
