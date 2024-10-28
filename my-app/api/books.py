@@ -78,24 +78,39 @@ async def update_book(id: int, book: BookBase, session: SessionDep):
     session.add(db_book)
     await session.commit()
     await session.refresh(db_book)
+
     return db_book
 
 @router.delete("/books/{id}")
 async def delete_book(id: int, session: SessionDep) :
-    book = session.get(BookBase, id)
-    if not book:
-        raise HTTPException(status_code=404, detail="book not found")
-    session.delete(book)
-    session.commit()
+    db_book = BookBase.model_validate(book)
+    statement = select(BookBase).where(BookBase.id == id)
+    book = await session.exec(statement=statement)
+    # res = book.scalar_one_or_none() 
+    book = book.one_or_none()
+    logger.warning(book)
+    if book is None: 
+        raise HTTPException(status_code=404, detail="Book not found")
+    # book = session.get(BookBase, id)
+    # statement = delete(BookBase).where(BookBase.id == id)
+    # book = await session.exec(statement=statement)
+    await session.delete(book)
+    await session.commit()
+    await session.refresh(db_book)
+    # session.commit()
     return {"ok": True}
 
 # POST /books/<id>/reviews: Add a review for a book.
 
 @router.post("/books/{id}/reviews", response_model=None)
 async def add_reviews(id: int, review: ReviewBase, session: SessionDep):
-    book = session.get(BookBase, id)
-    if not book:
-        raise HTTPException(status_code=404, detail="book not found")
+    statement = select(BookBase).where(BookBase.id == id)
+    book = await session.exec(statement=statement)
+    # res = book.scalar_one_or_none() 
+    book = book.one_or_none()
+    logger.warning(book)
+    if book is None: 
+        raise HTTPException(status_code=404, detail="Book not found")
     
     # do similar to check user_id exist or not
 
@@ -106,22 +121,38 @@ async def add_reviews(id: int, review: ReviewBase, session: SessionDep):
 
     review.book_id = id
     db_review = ReviewBase.model_validate(review)
+    logger.warning(db_review)
     session.add(db_review)
-    session.commit()
-    session.refresh(db_review)
+    await session.commit()
+    # await session.refresh(db_review)
     return db_review
 
 @router.get("/books/{id}/reviews", response_model=list[ReviewBase])
 async def get_reviews_by_id(id: int, session: SessionDep):
 
-    reviews = session.exec(select(ReviewBase).where(ReviewBase.book_id == id))
+    statement = select(BookBase).where(BookBase.id == id)
+    book = await session.exec(statement=statement)
+    # res = book.scalar_one_or_none() 
+    book = book.one_or_none()
+    logger.warning(book)
+    if book is None: 
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    reviews = await session.exec(select(ReviewBase).where(ReviewBase.book_id == id))
     return reviews
 
 @router.get("/books/{id}/summary", response_model=None)
 async def get_summary_review(id: int, session: SessionDep):
     
-    reviews = session.exec(select(ReviewBase.rating).where(ReviewBase.book_id == id))
-    summary = session.exec(select(BookBase.summary).where(BookBase.id == id))
+    reviews = await session.exec(select(ReviewBase.rating).where(ReviewBase.book_id == id))
+    summary = await session.exec(select(BookBase.summary).where(BookBase.id == id))
+
+    # reviews = await reviews.all()
+    # summary = await summary.all()
+
+    logger.warning(reviews)
+    logger.warning(summary)
+    
     li = []
     for rev in reviews:
         li.append(rev)

@@ -6,6 +6,6 @@ class ReviewBase(SQLModel, table=True):
     id: int | None = Field(index=True, primary_key=True)
     book_id: int | None = Field(index=True, foreign_key="books.id")
     user_id: int = Field(default=2)
-    review_text : str  = Field(default="below average")
+    review_text : str  = Field(default=None)
     rating : int = Field(default=2)
     created_at: datetime = Field(index=True)
