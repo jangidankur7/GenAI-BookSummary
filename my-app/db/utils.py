@@ -3,13 +3,13 @@ import os
 import time
 import dotenv
 from typing import Annotated
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 import logging
 import requests
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
-
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import asyncio
 import asyncpg
 
@@ -33,7 +33,18 @@ async_engine = create_async_engine(
    echo=True,
    future=True
 )
-
+users = {
+    "admin": {
+        "password": "Password123",
+        "token": "",
+        "priviliged": True
+    },
+    "person": {
+        "password": "Password",
+        "token": "",
+        "priviliged": True
+    }
+}
 
 async def get_session() -> AsyncSession:
    async_session = sessionmaker(
@@ -54,7 +65,24 @@ def check_ollama_model():
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
+
+security = HTTPBasic()
+def verification(creds: HTTPBasicCredentials = Depends(security)):
+    username = "admin"
+    password = "Password123"
+    if username in users and password == users[username]["password"]:
+        print("User Validated")
+        return False
+    else:
+        # From FastAPI 
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+ 
 logger = logging.getLogger('uvicorn.error')
 logger.warning("logger start")
 logger.warning(SessionDep)
+
 
